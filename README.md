@@ -4,8 +4,9 @@ deckbuilderswlcg
 a deck bulider alternative for star wars lcv on octgn.net
 
 ---------------
-------CLI------
----------------
+
+CLI VERSION
+===========
 
 install
 =======
@@ -24,8 +25,9 @@ comment
 the program doesn't do any validation
 
 ---------------
-------WEB------
----------------
+
+WEB VERSION
+===========
 
 install
 =======
