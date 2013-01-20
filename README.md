@@ -3,6 +3,10 @@ deckbuilderswlcg
 
 a deck bulider alternative for star wars lcv on octgn.net
 
+---------------
+------CLI------
+---------------
+
 install
 =======
 
@@ -18,3 +22,21 @@ comment
 =======
 
 the program doesn't do any validation
+
+---------------
+------WEB------
+---------------
+
+install
+=======
+
+1.)  install java, groovy and a servlet container (tomcat, jetty, etc.)<br/>
+2.)  put groovy-all-?.jar into WEB/WAR_ROOT/WEB-INF/lib<br/>
+3.)  execute swlcg-xml2json.groovy with the first parameter "SW-LCG-Core-Censored.o8s.7z". the resulting tmp and core_data.js put into WAR_ROOT<br/>
+3a.) if you have mogrify installed I recommend to run "cd tmp/cards/ && mogrify -filter LanczosSharp -resize 50% -format jpg -quality 89 *.jpg" at this point<br/>
+4.)  deploy WAR_ROOT into your servlet container<br/>
+
+comment
+=======
+
+the program will ensure basic deck building rules

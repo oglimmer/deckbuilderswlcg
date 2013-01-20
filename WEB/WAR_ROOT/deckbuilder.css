@@ -1,0 +1,30 @@
+body {
+	font-family: Arial;
+	background-color: #AAAAAA;
+}
+
+div,
+span {
+	background-color: #EEEEEE;
+}
+
+.affiBox,
+.cardBox {
+	border:5px solid black;
+	margin-bottom:25px;	
+}
+
+.affiBox > div,
+.cardBox > div {
+	font-size:25px
+}
+
+#infoBox {
+	border:5px solid black;
+	margin-bottom:25px;
+	position:fixed;
+	width: 400px;
+	background-color:white;
+	padding:8px;
+	right:10px;
+}
