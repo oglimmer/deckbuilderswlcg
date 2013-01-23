@@ -33,9 +33,9 @@ install
 =======
 
 1.)  install java, groovy, couchdb and a servlet container (tomcat, jetty, etc.)<br/>
-2.)  download the ivy.jar with dependencies
+2.)  download the ivy.jar with dependencies<br/>
 3.)  put groovy-all-?.jar and into all the ivy jars into WEB/WAR_ROOT/WEB-INF/lib<br/>
-4.)  start couchdb and create a database "swlcg" via http://localhost:5984/_utils 
+4.)  start couchdb and create a database "swlcg" via http://localhost:5984/_utils<br/>
 5.)  execute swlcg-xml2json.groovy with the first parameter "SW-LCG-Core-Censored.o8s.7z". the resulting tmp and core_data.js put into WAR_ROOT<br/>
 5a.) Depending on your card sizes and if you have mogrify installed I recommend to run "cd tmp/cards/ && mogrify -filter LanczosSharp -resize 50% -format jpg -quality 89 *.jpg" at this point, where you have to play around with the "50%"<br/>
 6.)  deploy WAR_ROOT into your servlet container<br/>
