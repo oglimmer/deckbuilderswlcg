@@ -28,3 +28,8 @@ span {
 	padding:8px;
 	right:10px;
 }
+
+
+#dialog {
+	display:none;
+}
