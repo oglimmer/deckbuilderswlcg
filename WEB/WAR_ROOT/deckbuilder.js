@@ -10,6 +10,18 @@ core_data.getBlock = function(blockNo) {
 	return retCardList;
 }
 
+String.prototype.toObject = function(rowSep, colSep) {
+	var retObj = {};
+	$.each(this.split(rowSep), function() {
+		if(this.length > 0){
+			var key = this.substring(0,this.indexOf(colSep))
+			var value = this.substring(this.indexOf(colSep)+1)
+			retObj[key] = value.trim();
+		}
+	});	
+	return retObj;
+}
+
 function Cards() {
 
 	this.onlyOnce = [35,36,17,18]
@@ -20,7 +32,28 @@ function Cards() {
 		{affi:'Rebel Alliance',blockNo:13}
 	];
 
-	this.reset();
+	this.reset(false);
+}
+
+Cards.prototype.askForReset = function() {		
+	var self = this;
+	$('<div style="padding: 10px; max-width: 500px; word-wrap: break-word;">Do you really want to discard this deck?</div>').dialog({
+	    draggable: false,
+	    modal: true,
+	    resizable: false,
+	    width: 'auto',
+	    title: 'Discard current deck',
+	    minHeight: 75,
+	    buttons: {
+	        OK: function () {
+	        	self.createSide('reset');
+	            $(this).dialog('destroy');
+	        },
+	        Cancel: function () {           
+	            $(this).dialog('destroy');
+	        }
+	    }
+	});
 }
 
 Cards.prototype.reset = function() {
@@ -44,6 +77,20 @@ Cards.prototype.resetStatistics = function() {
 	this.totalUnitCards = 0;
 	this.typesCounter = {};
 	this.affiliatonCounter = {};
+	this.combatIcons = {
+		add : function(combatIconsToAdd) {
+			var self = this;
+			$.each(combatIconsToAdd, function(key, val) {
+				var varInt = parseInt(val);
+				if(varInt>0) {
+					if(typeof(self[key]) == 'undefined') {
+						self[key] = 0;
+					}
+					self[key] += varInt;
+				}
+			})			
+		}
+	}
 }
 
 Cards.prototype.restrictSelections = function() {
@@ -85,6 +132,9 @@ Cards.prototype.calcStatistics = function() {
 			if(this.Type == 'Unit') {
 				self.totalUnitDmgCapacity += parseInt(this["Damage Capacity"]);
 				self.totalUnitCards++;
+
+				var combatIcons = this["Combat Icons"].toObject(',',':')
+				self.combatIcons.add(combatIcons)
 			}
 
 			if(this.Type != 'Objective') {
@@ -98,6 +148,7 @@ Cards.prototype.calcStatistics = function() {
 				self.affiliatonCounter[this.Affiliation] = 0;
 			}
 			self.affiliatonCounter[this.Affiliation]++;			
+
 		})
 	});	
 }
@@ -123,7 +174,7 @@ Cards.prototype.updateUi = function() {
 	if(this.affilication!='none'&&this.cardBlocks.length>=10) {
 		$("#out").html("<a href='"+buff+"'>Download your deck</a>"); 
 	} else {
-		$("#out").html("Deck not ready"); 
+		$("#out").html("Deck not ready to download"); 
 	}
 	var typesStr = "";
 	$.each(this.typesCounter, function(key, value) {
@@ -135,7 +186,14 @@ Cards.prototype.updateUi = function() {
 		if(affiliationStr.length>0) affiliationStr += ", ";
 		affiliationStr += key.substring(0,2)+"="+value+" ("+Math.round(100*value/(self.cardBlocks.length*6))+"%)";
 	})
-	$('#selected').html("Sets selected: "+this.cardBlocks.length+"<br/>"+
+	var combatIconsStr = "";
+	$.each(this.combatIcons, function(key, value) {
+		if(typeof(value)=='number') {
+			if(combatIconsStr.length>0) combatIconsStr += ", ";
+			combatIconsStr += key+"="+value+" (ø:"+(value/(self.cardBlocks.length*5)).toFixed(2)+"%)";
+		}
+	})
+	$('#statisticsDiv').html("Sets selected: "+this.cardBlocks.length+"<br/>"+
 						"Cost: "+this.totalCost+" (ø:"+(this.totalCost/this.totalCostCards).toFixed(2)+")<br/>"+
 						"Force: "+this.totalForce+" (ø:"+(this.totalForce/(this.cardBlocks.length*5)).toFixed(2)+")<br/>"+
 						"Obj Resources: "+(this.totalAffiliationResources+this.totalObjectiveResources)+" (ø:"+(this.totalObjectiveResources/this.cardBlocks.length).toFixed(2)+")<br/>"+
@@ -143,13 +201,31 @@ Cards.prototype.updateUi = function() {
 						"Unit Dmg Capa: "+this.totalUnitDmgCapacity+" (ø:"+(this.totalUnitDmgCapacity/this.totalUnitCards).toFixed(2)+")<br/>"+
 						"Cards: "+this.totalNumCards+"<br/>"+
 						"Types: "+typesStr+"<br/>"+
-						"Affiliation: "+affiliationStr+"<br/>"
-						);	
+						"Affiliation: "+affiliationStr+"<br/>"+
+						"Combat Icons: "+combatIconsStr+"<br/>"
+						);
+	var allselectedBlocks = "";
+	var lastBlockNo = "";
+	$.each(this.cardBlocks, function() {		
+		var blockNo = parseInt(this.toString());
+		if(lastBlockNo != blockNo) {
+			if(allselectedBlocks != "") {
+				allselectedBlocks += "<br/>"
+			}
+			var cards = core_data.getBlock(blockNo)		
+			allselectedBlocks += "<a href='#block_"+blockNo+"'>"+cards[0].name+"</a>";
+		} else {
+			allselectedBlocks += " (2x)";
+		}
+		lastBlockNo = blockNo
+	})
+	$('#selectedCardsDiv').html(allselectedBlocks);
 }
 
 Cards.prototype.selectionChanged = function() {
-	this.updateSelectionModel();
-	this.restrictSelections();
+	this.updateSelectionModel(); // UI selection -> data model
+	this.restrictSelections(); // update UI related to restrictions
+	this.updateSelectionModel(); // UI selection -> data model since it could be that we removed something
 	this.calcStatistics();
 	this.updateUi();
 }
@@ -161,33 +237,38 @@ Cards.prototype.createSide = function (side) {
 		$('#mainLinkLight').show();
 		$('#mainLinkDark').show();
 		$('#main').empty();
-		this.reset();
-		$('#selected').empty();
-		$('#mainLinkLoad').show();
-		$('#mainLinkSave').hide();
+		this.reset(true);
+		$('#statisticsDiv').empty();
+		if(user.loggedIn) {
+			$('#mainLinkLoad').show();
+			$('#mainLinkSave').hide();
+		}
 	} else {
 		$('#mainLinkLight').hide();
 		$('#mainLinkDark').hide();
 		$('#mainLinkReset').show();
 		$('#main').empty()
-		this.reset();
+		this.reset(false);
 		this.updateUi();
-		$('#mainLinkLoad').hide();
-		$('#mainLinkSave').show();
+		if(user.loggedIn) {
+			$('#mainLinkLoad').hide();
+			$('#mainLinkSave').show();
+		}
 
 		// create Affiliations-Box
 		var mainDiv = $("<div />").attr('class','affiBox');
 		$("<div />").html("Affiliations for "+side).appendTo(mainDiv);
 		$.each(core_data[side].Affiliation, function(index, value) {
 			$("<input />").attr('type','radio').attr('name','affi').attr('value',value.name).attr('onchange','cards.selectionChanged()').appendTo(mainDiv);
-			$("<img />").attr('src','tmp/'+value.fileName).appendTo(mainDiv);
+			$("<img />").attr('src',user.path+'/'+value.fileName).appendTo(mainDiv);
 		});
 		$('#main').append(mainDiv);
 
 		// create all Card-Boxs
 		$.each(core_data[side].CardBlocks, function(index, value) {
 			var mainDiv = $("<div />").attr('class','cardBox');
-			var headerDiv = $("<div />").html("Block "+value.blockNo+" ")
+			var headerAhref = $("<a />").attr("name","block_"+value.blockNo).html("Block "+value.blockNo);
+			var headerDiv = $("<div />").append(headerAhref);
 			headerDiv.appendTo(mainDiv);
 			$("<input />").attr('type','checkbox').attr('name',value.blockNo).attr('onchange','cards.selectionChanged()').appendTo(headerDiv);
 			if($.inArray(value.blockNo, cards.onlyOnce)==-1) {
@@ -198,7 +279,7 @@ Cards.prototype.createSide = function (side) {
 				if(index == 0) {
 					toAppendDiv = $("<div />").appendTo(mainDiv);
 				}
-				$("<img />").attr('src','tmp/'+value.fileName).appendTo(toAppendDiv);
+				$("<img />").attr('src',user.path+'/'+value.fileName).appendTo(toAppendDiv);
 			});
 			$('#main').append(mainDiv);
 		});
@@ -208,7 +289,9 @@ Cards.prototype.createSide = function (side) {
 }
 
 function User() {
-	this.deckList = [];	
+	this.deckList = [];
+	this.path = "tmp"
+	this.loggedIn = false
 }
 
 // jQuery's inArray uses === but I need ==
@@ -258,7 +341,7 @@ User.prototype.saveDeck = function() {
 								}
 							}
 						);		                	
-	                	$( this ).dialog( "close" )
+	                	$( this ).dialog( "destroy" )
 	                }
 	            }
 	        });
@@ -269,16 +352,17 @@ User.prototype.saveDeck = function() {
 
 User.prototype.loadDeck = function(deckId) {
 	var self = this;
-	$.get( "api.groovy" , {type:'load',deckId:deckId} , function(data, textStatus, jqXHR) {
-		if(textStatus=='success') {
-			var jsonData = $.parseJSON(data);			
-			cards.createSide(jsonData.side);
-			cards.reverseUpdateSelectionModel(jsonData.affiliation, jsonData.blocks.split("-"));
-			cards.selectionChanged();
-			cards.currentDeckId = deckId
+	$.ajax( "api.groovy" , {type: 'GET', dataType: 'json', data: {type:'load',deckId:deckId}, 
+		success: function(data, textStatus, jqXHR) {
+			if(textStatus=='success') {
+				cards.createSide(data.side);
+				cards.reverseUpdateSelectionModel(data.affiliation, data.blocks.split("-"));
+				cards.selectionChanged();
+				cards.currentDeckId = deckId
+			}
 		}
 	});
-	this.dialog.dialog("close");
+	this.dialog.dialog("destroy");
 }
 
 User.prototype.showDeckList = function() {
@@ -287,7 +371,7 @@ User.prototype.showDeckList = function() {
 		str += "<a href='javascript:void(0)' onclick='user.loadDeck(\""+this.id+"\")'>"+this.name+"</a><br/>";
 	});
 	this.dialog = $( 	'<div>'+str+'</div>' ).dialog(
-		{ title:'Load a deck',modal:true,buttons: { "Cancel": function() { $( this ).dialog( "close" ); } } }
+		{ title:'Load a deck',modal:true,buttons: { "Cancel": function() { $( this ).dialog( "destroy" ); } } }
 	);
 }
 
@@ -295,8 +379,8 @@ User.prototype.register = function() {
 	var self = this;
 	$( 	'<div>'+
   		'<p>Please enter your email and a passwort to create a new account:</p>'+
-  		'Email: <input type="text" id="textEmail" name="email" />'+
-  		'Password: <input type="text" id="textPassword" name="password" />'+
+  		'Email:<br/><input type="text" id="textEmail" name="email" /><br/>'+
+  		'Password:<br/><input type="text" id="textPassword" name="password" />'+
 		'</div>' ).dialog({     
 			modal: true,                   
             title: 'Register account',
@@ -309,43 +393,54 @@ User.prototype.register = function() {
 		            	$.ajax( "api.groovy" , {
 		            		type: 'POST',
 		            		dataType: 'json',
+		            		headers: { "cache-control": "no-cache" },
 		            		data: {type:'create',email:$("#textEmail").val(), pass:$("#textPassword").val()} ,
 		            		success : function(data, textStatus, jqXHR) {
 		                		if(textStatus=='success') {
                         			$('#mainLinkLogin').hide();
                         			$('#mainLinkRegister').hide();                            			
-                        			self.deckList = data;
-                       				$('#mainLinkLoad').show();
+		                			$('#mainLinkLogout').show();                            			
+                        			self.deckList = data.deckNames;
+                        			self.loggedIn = true
+				        			if(cards.side==null||cards.side=='reset') {
+				       					$('#mainLinkLoad').show();
+				       				} else {
+				       					$('#mainLinkSave').show();
+				       				}
 		                		}
 		                	},
 							error : function(jqXHR, textStatus, errorThrown) {
-								var responseHeaders = {};
-								$.each(jqXHR.getAllResponseHeaders().split("\r\n"), function() {
-									if(this.length > 0){
-										var key = this.substring(0,this.indexOf(':'))
-										var value = this.substring(this.indexOf(':')+1)
-										responseHeaders[key] = value.trim();
-									}
-								});											
-	                			alert(responseHeaders.X_ERROR);
+	                			alert(jqXHR.getAllResponseHeaders().toObject("\r\n",':').X_ERROR);
 		                	}
 		            	});
-                    	$( this ).dialog( "close" ); 
+                    	$( this ).dialog( "destroy" ); 
                 	}                            	
                	},
                	"Cancel": function() {
-               		$( this ).dialog( "close" ); 
+               		$( this ).dialog( "destroy" ); 
                	}
             }
         });	
+}
+
+User.prototype.logout = function() {
+	deleteCookie("JSESSIONID")
+	$('#mainLinkLogin').show();
+	$('#mainLinkRegister').show();                            			
+	this.deckList = [];
+	this.path = "tmp";
+	this.loggedIn = false
+	$('#mainLinkLoad').hide();
+	$('#mainLinkSave').hide();
+	$('#mainLinkLogout').hide();
 }
 
 User.prototype.login = function() {
 	var self = this;
 	$( 	'<div>'+
   		'<p>Please enter your email and a passwort to login:</p>'+
-  		'Email: <input type="text" id="textEmail" name="email" />'+
-  		'Password: <input type="password" id="textPassword" name="password" />'+
+  		'Email:<br/><input type="text" id="textEmail" name="email" /><br/>'+
+  		'Password:<br/><input type="password" id="textPassword" name="password" />'+
 		'</div>' ).dialog({     
 			modal: true,                   
 	        title: 'Login',
@@ -354,13 +449,21 @@ User.prototype.login = function() {
 	            	$.ajax( "api.groovy" , {
 	            		type: 'POST',
 	            		dataType: 'json',
+	            		headers: { "cache-control": "no-cache" },
 	            		data: { type:'login', email:$("#textEmail").val(), pass:$("#textPassword").val() },
 	            		success : function(data, textStatus, jqXHR) {
 	                		if(textStatus=='success') {
 	                			$('#mainLinkLogin').hide();
 	                			$('#mainLinkRegister').hide();                            			
-	                			self.deckList = data;
-	               				$('#mainLinkLoad').show();
+	                			$('#mainLinkLogout').show();                            			
+	                			self.deckList = data.deckNames;
+	                			self.path = data.path;
+	                			self.loggedIn = true
+			        			if(cards.side==null||cards.side=='reset') {
+			       					$('#mainLinkLoad').show();
+			       				} else {
+			       					$('#mainLinkSave').show();
+			       				}
 	                		}
 	                	},
 						error : function(jqXHR, textStatus, errorThrown) {
@@ -371,14 +474,16 @@ User.prototype.login = function() {
 	                		}
 	                	}
 	            	});
-	            	$( this ).dialog( "close" ); 
+	            	$( this ).dialog( "destroy" ); 
 	           	},
 	           	"Cancel": function() {
-	           		$( this ).dialog( "close" ); 
+	           		$( this ).dialog( "destroy" ); 
 	           	}
 	        }
 	    });	
 }
+
+
 
 var user = new User();
 var cards = new Cards();
@@ -388,19 +493,30 @@ function readCookie(key)
     var result;
     return ((result = new RegExp('(?:^|; )' + encodeURIComponent(key) + '=([^;]*)').exec(document.cookie)) ? (result[1]) : null);
 }
+function deleteCookie(key) {
+    document.cookie = encodeURIComponent(key) + "=deleted; expires=" + new Date(0).toUTCString();
+}
 
 $(function() {
+	$( "#tabs" ).tabs();
 	if(readCookie("JSESSIONID")!=null) {
     	$.ajax( "api.groovy" , {
     		type: 'GET',
-    		dataType: 'json',
+    		dataType: 'json',    		
     		data: { type:'relogin' },
     		success : function(data, textStatus, jqXHR) {
         		if(textStatus=='success') {
         			$('#mainLinkLogin').hide();
-        			$('#mainLinkRegister').hide();                            			        			
-        			user.deckList = data;
-       				$('#mainLinkLoad').show();
+        			$('#mainLinkRegister').hide();      
+        			$('#mainLinkLogout').show();                      			        			
+        			user.deckList = data.deckNames;
+        			user.path = data.path;
+        			user.loggedIn = true
+        			if(cards.side==null||cards.side=='reset') {
+       					$('#mainLinkLoad').show();
+       				} else {
+       					$('#mainLinkSave').show();
+       				}
         		}
         	}
         });

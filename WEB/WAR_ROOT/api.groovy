@@ -21,13 +21,13 @@ def builder = new groovy.json.JsonBuilder()
 if (params.type=='create') {
 	try {
 		def messageDigest = MessageDigest.getInstance("SHA1")
-		def response = client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: [password: messageDigest.digest(params.pass.bytes), deckList: []])
+		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password: messageDigest.digest(params.pass.bytes), deckList: []])
 		safeSession()
 		session.loggedIn = true;
-		session.email = params.email
+		session.email = params.email.toLowerCase()
 		def deckNames = []
 		builder (
-			deckNames
+			[deckNames: deckNames, path: 'tmp']
 		)	
 	} catch(groovyx.net.http.HttpResponseException e) {
 		response.addHeader('X_ERROR',e.getMessage());
@@ -38,14 +38,14 @@ if (params.type=='create') {
 if (params.type=='login') {
 	try {
 		def messageDigest = MessageDigest.getInstance("SHA1")
-		def httpResponse = client.get(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON)
+		def httpResponse = client.get(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON)
 		if(messageDigest.digest(params.pass.bytes) == httpResponse.data.password) {
 			safeSession()
 			session.loggedIn = true
-			session.email = params.email
+			session.email = params.email.toLowerCase()
 			def deckNames = httpResponse.data.deckList
 			builder (
-				deckNames
+				[deckNames: deckNames, path: (httpResponse.data.picPath?httpResponse.data.picPath:'tmp')]
 			)
 		} else {
 			response.sendError(403);
@@ -61,7 +61,7 @@ if(params.type=='relogin') {
 		def httpResponse = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)		
 		def deckNames = httpResponse.data.deckList
 		builder (
-			deckNames
+			[deckNames: deckNames, path: (httpResponse.data.picPath?httpResponse.data.picPath:'tmp')]
 		)
 	} else {
 		response.sendError(403);
@@ -104,5 +104,7 @@ if (params.type=='save') {
 		)
 	}
 }
+
+response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
 
 println builder.toPrettyString();
