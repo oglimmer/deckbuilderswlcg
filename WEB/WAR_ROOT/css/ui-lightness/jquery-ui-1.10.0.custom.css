@@ -764,7 +764,7 @@ button.ui-button::-moz-focus-inner {
 	cursor: pointer;
 }
 .ui-tabs .ui-tabs-panel {
-	font-size:12px;
+	font-size:13px;
 	display: block;
 	border-width: 0;
 	padding: 3px 3px;

@@ -9,6 +9,20 @@ core_data.getBlock = function(blockNo) {
 	});
 	return retCardList;
 }
+core_data.getCard = function(cardId) {
+	if(typeof(this.idCardCache) === 'undefined') {
+		this.idCardCache = {}
+		var icc = this.idCardCache;
+		$.each([this.Dark,this.Light], function() {
+			$.each(this.CardBlocks, function() {
+				$.each(this.cards, function() {
+					icc["card"+this.id] = this;
+				});
+			});
+		});
+	}
+	return this.idCardCache[cardId];
+}
 
 String.prototype.toObject = function(rowSep, colSep) {
 	var retObj = {};
@@ -44,6 +58,9 @@ Cards.prototype.askForReset = function() {
 	    width: 'auto',
 	    title: 'Discard current deck',
 	    minHeight: 75,
+        close: function(ev, ui) {
+			$(this).remove();
+		},
 	    buttons: {
 	        OK: function () {
 	        	self.createSide('reset');
@@ -155,13 +172,13 @@ Cards.prototype.calcStatistics = function() {
 
 Cards.prototype.updateSelectionModel = function() {
 	var self = this;
-	$("input[type=radio]").each(function() {
+	$("#main input[type=radio]").each(function() {
 		if(this.checked) { 
 			self.affilication = this.value;
 		}
 	});
 	this.cardBlocks = [];
-	$("input[type=checkbox]").each(function() {
+	$("#main input[type=checkbox]").each(function() {
 		if(this.checked) {
 			self.cardBlocks.push(this.name);
 		}
@@ -193,13 +210,12 @@ Cards.prototype.updateUi = function() {
 			combatIconsStr += key+"="+value+" (ø:"+(value/(self.cardBlocks.length*5)).toFixed(2)+"%)";
 		}
 	})
-	$('#statisticsDiv').html("Sets selected: "+this.cardBlocks.length+"<br/>"+
+	$('#statisticsDiv').html("Sets selected: "+this.cardBlocks.length+" / "+"Cards: "+this.totalNumCards+"<br/>"+
 						"Cost: "+this.totalCost+" (ø:"+(this.totalCost/this.totalCostCards).toFixed(2)+")<br/>"+
 						"Force: "+this.totalForce+" (ø:"+(this.totalForce/(this.cardBlocks.length*5)).toFixed(2)+")<br/>"+
 						"Obj Resources: "+(this.totalAffiliationResources+this.totalObjectiveResources)+" (ø:"+(this.totalObjectiveResources/this.cardBlocks.length).toFixed(2)+")<br/>"+
 						"Oth Resources: "+this.totalNonObjectiveResources+" (ø:"+(this.totalNonObjectiveResources/(this.cardBlocks.length*5)).toFixed(2)+")<br/>"+
-						"Unit Dmg Capa: "+this.totalUnitDmgCapacity+" (ø:"+(this.totalUnitDmgCapacity/this.totalUnitCards).toFixed(2)+")<br/>"+
-						"Cards: "+this.totalNumCards+"<br/>"+
+						"Unit Dmg Capa: "+this.totalUnitDmgCapacity+" (ø:"+(this.totalUnitDmgCapacity/this.totalUnitCards).toFixed(2)+")<br/>"+						
 						"Types: "+typesStr+"<br/>"+
 						"Affiliation: "+affiliationStr+"<br/>"+
 						"Combat Icons: "+combatIconsStr+"<br/>"
@@ -225,9 +241,33 @@ Cards.prototype.updateUi = function() {
 Cards.prototype.selectionChanged = function() {
 	this.updateSelectionModel(); // UI selection -> data model
 	this.restrictSelections(); // update UI related to restrictions
+	this.changeShow()
 	this.updateSelectionModel(); // UI selection -> data model since it could be that we removed something
 	this.calcStatistics();
 	this.updateUi();
+}
+
+Cards.prototype.changeShow = function () {
+	var self = this
+	var showSelected = $("#cardsDiv input[type=radio]:checked").val()
+	var unitsSelected = {
+		Un : $("#cardsDiv input[name=show_unit]:checked").val()?true:false,
+		En : $("#cardsDiv input[name=show_enhancement]:checked").val()?true:false,
+		Ev : $("#cardsDiv input[name=show_event]:checked").val()?true:false,
+		Fa : $("#cardsDiv input[name=show_fate]:checked").val()?true:false,
+		Ob : $("#cardsDiv input[name=show_objective]:checked").val()?true:false
+	}
+	$("div[class=cardBox] img").each(function() {
+		var card = core_data.getCard(this.id)		
+		var showSelection = showSelected == 'all' || 
+			showSelected == 'sel' && $.inArray((parseInt(card.Block,10)).toString(), self.cardBlocks) != -1 || 
+			showSelected == 'not' && $.inArray((parseInt(card.Block,10)).toString(), self.cardBlocks) == -1;;		
+		if(unitsSelected[card.Type.substring(0,2)] && showSelection) {
+			$(this).show()
+		} else {
+			$(this).hide()
+		}
+	});
 }
 
 Cards.prototype.createSide = function (side) {
@@ -242,6 +282,7 @@ Cards.prototype.createSide = function (side) {
 		if(user.loggedIn) {
 			$('#mainLinkLoad').show();
 			$('#mainLinkSave').hide();
+			$('#mainLinkSaveAs').hide();
 		}
 	} else {
 		$('#mainLinkLight').hide();
@@ -253,6 +294,7 @@ Cards.prototype.createSide = function (side) {
 		if(user.loggedIn) {
 			$('#mainLinkLoad').hide();
 			$('#mainLinkSave').show();
+			$('#mainLinkSaveAs').show();
 		}
 
 		// create Affiliations-Box
@@ -279,7 +321,7 @@ Cards.prototype.createSide = function (side) {
 				if(index == 0) {
 					toAppendDiv = $("<div />").appendTo(mainDiv);
 				}
-				$("<img />").attr('src',user.path+'/'+value.fileName).appendTo(toAppendDiv);
+				$("<img />").attr('id','card'+value.id).attr('src',user.path+'/'+value.fileName).appendTo(toAppendDiv);
 			});
 			$('#main').append(mainDiv);
 		});
@@ -295,7 +337,7 @@ function User() {
 }
 
 // jQuery's inArray uses === but I need ==
-Cards.prototype.inArray = function(objToSearch, array, index) {
+Cards.inArray = function(objToSearch, array, index) {
 	for(var i = index ; i < array.length ; i++) {
 		if(array[i] == objToSearch) {
 			return i;
@@ -313,8 +355,8 @@ Cards.prototype.reverseUpdateSelectionModel = function(affilication, cardBlocks)
 	});
 	var lastFound = 0;
 	$("input[type=checkbox]").each(function() {		
-		if(self.inArray(this.name, cardBlocks, lastFound)!=-1) {
-			lastFound=self.inArray(this.name, cardBlocks, lastFound)+1;
+		if(Cards.inArray(this.name, cardBlocks, lastFound)!=-1) {
+			lastFound=Cards.inArray(this.name, cardBlocks, lastFound)+1;
 			this.checked = true;
 		}
 	});
@@ -323,31 +365,51 @@ Cards.prototype.reverseUpdateSelectionModel = function(affilication, cardBlocks)
 User.prototype.saveDeck = function() {	
 	var self = this;
 	if(cards.currentDeckId == "") {
-		$( 	'<div>'+
-	  		'<p>Please enter a name for the deck:</p>'+
-	  		'<input type="text" id="textDeckName" name="deckName" />'+
-			'</div>' ).dialog({     
-				modal: true,                   
-	            title: 'Save deck',
-	            buttons: {
-	                "Save deck": function () { 
-	                	var deckName = $("#textDeckName").val()						
-						$.get( "api.groovy" , {type:'save', deckName: deckName, side: cards.side, affi: cards.affilication, blocks: cards.cardBlocks.join('-')} , 
-							function(data, textStatus, jqXHR) {
-								if(textStatus=='success') {
-									var jsonData = $.parseJSON(data)
-									self.deckList.push(jsonData)
-									cards.currentDeckId = jsonData.id
-								}
-							}
-						);		                	
-	                	$( this ).dialog( "destroy" )
-	                }
-	            }
-	        });
+		this.saveAsDeck();
 	} else {
 		$.get( "api.groovy" , {type:'save', deckId: cards.currentDeckId, affi: cards.affilication, blocks: cards.cardBlocks.join('-')} );		                	
 	}
+}
+
+User.prototype.saveAsDeck = function() {	
+	var self = this;
+	$( 	'<div>'+
+  		'<p>Please enter a name for the deck:</p>'+
+  		'<input type="text" id="textDeckName" name="textDeckName" />'+
+		'</div>' ).dialog({     
+			modal: true,                   
+            title: 'Save deck',
+            close: function(ev, ui) {
+				$(this).remove();
+  			},
+            buttons: {
+                "Save deck": function () { 
+                	var textDeckName = $("#textDeckName").val()						
+					$.get( "api.groovy" , {type:'save', deckName: textDeckName, side: cards.side, affi: cards.affilication, blocks: cards.cardBlocks.join('-')} , 
+						function(data, textStatus, jqXHR) {
+							if(textStatus=='success') {
+								var jsonData = $.parseJSON(data)
+								self.deckList.push(jsonData)
+								cards.currentDeckId = jsonData.id
+							}
+						}
+					);		                	
+                	$( this ).dialog( "destroy" )
+                }
+            }
+        });
+}
+
+User.prototype.delDeck = function(deckId) {
+	var self = this;
+	$.ajax( "api.groovy" , {type: 'GET', dataType: 'json', data: {type:'delete',deckId:deckId}, 
+		success: function(data, textStatus, jqXHR) {
+			if(textStatus=='success') {
+       			self.deckList = data.deckNames;
+			}
+		}
+	});
+	this.dialog.dialog("destroy");
 }
 
 User.prototype.loadDeck = function(deckId) {
@@ -368,11 +430,21 @@ User.prototype.loadDeck = function(deckId) {
 User.prototype.showDeckList = function() {
 	var str = "";
 	$.each(this.deckList, function() {
-		str += "<a href='javascript:void(0)' onclick='user.loadDeck(\""+this.id+"\")'>"+this.name+"</a><br/>";
+		str += "<a href='javascript:void(0)' onclick='user.delDeck(\""+this.id+"\")'>[Del]</a> <a href='javascript:void(0)' onclick='user.loadDeck(\""+this.id+"\")'>"+this.name+"</a><br/>";
 	});
-	this.dialog = $( 	'<div>'+str+'</div>' ).dialog(
-		{ title:'Load a deck',modal:true,buttons: { "Cancel": function() { $( this ).dialog( "destroy" ); } } }
-	);
+	this.dialog = $( 	'<div>'+str+'</div>' ).dialog({ 
+		title:'Load a deck',
+		modal:true,
+		width: 500,
+		buttons: { "Cancel": function() { $( this ).dialog( "destroy" ); } },
+        close: function(ev, ui) {
+			$(this).remove();
+		},
+    	open: function ()
+		{
+			$(this).parents().find('button').last().focus(); 
+		},
+	});
 }
 
 User.prototype.register = function() {
@@ -384,6 +456,9 @@ User.prototype.register = function() {
 		'</div>' ).dialog({     
 			modal: true,                   
             title: 'Register account',
+	        close: function(ev, ui) {
+				$(this).remove();
+			},
             buttons: {
                 "Create account": function () { 
                 	if($("#textEmail").val() == "" || $("#textPassword").val() == "") {
@@ -406,6 +481,7 @@ User.prototype.register = function() {
 				       					$('#mainLinkLoad').show();
 				       				} else {
 				       					$('#mainLinkSave').show();
+				       					$('#mainLinkSaveAs').show();
 				       				}
 		                		}
 		                	},
@@ -432,6 +508,7 @@ User.prototype.logout = function() {
 	this.loggedIn = false
 	$('#mainLinkLoad').hide();
 	$('#mainLinkSave').hide();
+	$('#mainLinkSaveAs').hide();
 	$('#mainLinkLogout').hide();
 }
 
@@ -444,6 +521,9 @@ User.prototype.login = function() {
 		'</div>' ).dialog({     
 			modal: true,                   
 	        title: 'Login',
+	        close: function(ev, ui) {
+				$(this).remove();
+			},
 	        buttons: {
 	            "Login": function () { 
 	            	$.ajax( "api.groovy" , {
@@ -463,6 +543,7 @@ User.prototype.login = function() {
 			       					$('#mainLinkLoad').show();
 			       				} else {
 			       					$('#mainLinkSave').show();
+			       					$('#mainLinkSaveAs').show();
 			       				}
 	                		}
 	                	},
@@ -516,6 +597,7 @@ $(function() {
        					$('#mainLinkLoad').show();
        				} else {
        					$('#mainLinkSave').show();
+       					$('#mainLinkSaveAs').show();
        				}
         		}
         	}
