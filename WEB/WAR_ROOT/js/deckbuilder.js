@@ -367,7 +367,18 @@ User.prototype.saveDeck = function() {
 	if(cards.currentDeckId == "") {
 		this.saveAsDeck();
 	} else {
-		$.get( "api.groovy" , {type:'save', deckId: cards.currentDeckId, affi: cards.affilication, blocks: cards.cardBlocks.join('-')} );		                	
+		$.get( "api.groovy" , {
+			type:'save',
+			deckId: cards.currentDeckId, 
+			affi: cards.affilication, 
+			blocks: cards.cardBlocks.join('-'),
+			valid: (cards.affilication!='none' && cards.cardBlocks.length >= 10)
+		}, function(data, textStatus, jqXHR) {
+			if(textStatus=='success') {				
+				var jsonData = $.parseJSON(data)
+				self.deckList = jsonData.deckNames;		
+			}
+		});		                	
 	}
 }
 
@@ -385,8 +396,14 @@ User.prototype.saveAsDeck = function() {
             buttons: {
                 "Save deck": function () { 
                 	var textDeckName = $("#textDeckName").val()						
-					$.get( "api.groovy" , {type:'save', deckName: textDeckName, side: cards.side, affi: cards.affilication, blocks: cards.cardBlocks.join('-')} , 
-						function(data, textStatus, jqXHR) {
+					$.get( "api.groovy" , {
+						type:'save', 
+						deckName: textDeckName, 
+						side: cards.side, 
+						affi: cards.affilication, 
+						blocks: cards.cardBlocks.join('-'),
+						valid: (cards.affilication!='none' && cards.cardBlocks.length >= 10)
+					}, function(data, textStatus, jqXHR) {
 							if(textStatus=='success') {
 								var jsonData = $.parseJSON(data)
 								self.deckList.push(jsonData)
@@ -430,7 +447,9 @@ User.prototype.loadDeck = function(deckId) {
 User.prototype.showDeckList = function() {
 	var str = "";
 	$.each(this.deckList, function() {
-		str += "<a href='javascript:void(0)' onclick='user.delDeck(\""+this.id+"\")'>[Del]</a> <a href='javascript:void(0)' onclick='user.loadDeck(\""+this.id+"\")'>"+this.name+"</a><br/>";
+		str += "<a href='javascript:void(0)' onclick='user.delDeck(\""+this.id
+			+"\")'>[Del]</a> <a href='javascript:void(0)' onclick='user.loadDeck(\""+this.id+"\")'>"
+			+this.name+" ("+this.side+"/"+(this.valid=='true'?"Valid":"Invalid")+")"+"</a><br/>";
 	});
 	this.dialog = $( 	'<div>'+str+'</div>' ).dialog({ 
 		title:'Load a deck',

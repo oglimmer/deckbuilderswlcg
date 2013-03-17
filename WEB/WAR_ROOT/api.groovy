@@ -85,12 +85,23 @@ if (params.type=='save') {
 	safeSession()
 	if(params.deckId) {
 		// load deck
-		def response = client.get(path: getDBName() + params.deckId , contentType: JSON, requestContentType:  JSON)		
+		def response = client.get(path: getDBName() + params.deckId , contentType: JSON, requestContentType:  JSON)
+		// change dat		
 		response.data.affiliation = params.affi
-		response.data.blocks = params.blocks	
+		response.data.blocks = params.blocks
+		// write back	
 		if(session.email == response.data.owner) {			
 			response = client.put(path: getDBName() + params.deckId, contentType: JSON, requestContentType:  JSON, body: response.data)
 		}
+		// update user
+		response = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)		
+		def deck = response.data.deckList.find { it.id == params.deckId }
+		deck.valid = params.valid
+		client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: response.data)
+		// return new created deck
+		builder (
+			[deckNames: response.data.deckList, path: (response.data.picPath?response.data.picPath:'tmp')]
+		)
 	} else {
 		def deckData = [owner: session.email, deckName: params.deckName, side: params.side,affiliation: params.affi,blocks:params.blocks ]
 		// create deck
@@ -98,11 +109,11 @@ if (params.type=='save') {
 		def newId = response.data.id
 		// update user
 		response = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)
-		response.data.deckList.push([id:newId, name:params.deckName, side:params.side])
+		response.data.deckList.push([id: newId, name: params.deckName, side: params.side, valid: params.valid])
 		response = client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: response.data)	
 		// return new created deck
 		builder (
-			[id:newId, name:params.deckName]
+			[id: newId, name: params.deckName, side: params.side, valid: params.valid]
 		)
 	}
 }
