@@ -22,6 +22,10 @@ args.each { file ->
 	//  ant.unzip(  src: basedir+file, dest:basedir+"tmp",  overwrite:"true")
 	// cd tmp/cards/ &&  mogrify -filter LanczosSharp -resize 50% -format jpg -quality 89 *.jpg && cd ../..
 	
+//	mogrify -filter LanczosSharp -resize 85x85 -format jpg -quality 89 *.jpg //small
+//	mogrify -filter LanczosSharp -resize 509x509 -format jpg -quality 89 *.jpg //large
+//	mogrify -filter LanczosSharp -resize 423x423 -format jpg -quality 89 *.jpg //deckbuilder
+	
 	def xmlDefFile = new File(file)
 	if(!xmlDefFile.exists() || !xmlDefFile.isFile() || !file.toString().endsWith(".xml")) {
 		System.out.printf("%s is not a xml-file\r\n", file)
