@@ -257,12 +257,16 @@ Cards.prototype.changeShow = function () {
 		Fa : $("#cardsDiv input[name=show_fate]:checked").val()?true:false,
 		Ob : $("#cardsDiv input[name=show_objective]:checked").val()?true:false
 	}
+	var setsSelected = {
+		"Core" : $("#cardsDiv input[name=set_core]:checked").val()?true:false,
+		"Desolation-Of-Hoth" : $("#cardsDiv input[name=set_Desolation-Of-Hoth]:checked").val()?true:false
+	}
 	$("div[class=cardBox] img").each(function() {
 		var card = core_data.getCard(this.id)		
 		var showSelection = showSelected == 'all' || 
 			showSelected == 'sel' && $.inArray((parseInt(card.Block,10)).toString(), self.cardBlocks) != -1 || 
 			showSelected == 'not' && $.inArray((parseInt(card.Block,10)).toString(), self.cardBlocks) == -1;;		
-		if(unitsSelected[card.Type.substring(0,2)] && showSelection) {
+		if(unitsSelected[card.Type.substring(0,2)] && setsSelected[card.set] && showSelection) {
 			$(this).show()
 		} else {
 			$(this).hide()

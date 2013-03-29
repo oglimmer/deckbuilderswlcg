@@ -53,6 +53,7 @@
 			</div>
 			<div id="statisticsDiv"></div>
 			<div id="cardsDiv">
+				<div>Core:<input type="checkbox" name="set_core" value="yes" checked="checked" onchange="cards.changeShow()" /> Desolation-Of-Hoth:<input type="checkbox" name="set_Desolation-Of-Hoth" value="yes" checked="checked" onchange="cards.changeShow()" /></div>
 				<div>All:<input type="radio" name="show" value="all" checked="checked" onchange="cards.changeShow()" /> Selected:<input type="radio" name="show" value="sel" onchange="cards.changeShow()" /> Not:<input type="radio" name="show" value="not" onchange="cards.changeShow()" /> |
 				 Un<input type="checkbox" name="show_unit" value="yes" checked="checked" onchange="cards.changeShow()" /> En<input type="checkbox" name="show_enhancement" value="yes" checked="checked" onchange="cards.changeShow()" /> Ev<input type="checkbox" name="show_event" value="yes" checked="checked" onchange="cards.changeShow()" /> Fa<input type="checkbox" name="show_fate" value="yes" checked="checked" onchange="cards.changeShow()" /> Ob<input type="checkbox" name="show_objective" value="yes" checked="checked" onchange="cards.changeShow()" /></div>
 				<div id="selectedCardsDiv"></div>
