@@ -187,7 +187,7 @@ Cards.prototype.updateSelectionModel = function() {
 
 Cards.prototype.updateUi = function() {
 	var self = this;
-	var buff = '/gen.groovy?affi='+this.affilication+'&cards='+this.cardBlocks.toString();
+	var buff = 'gen.groovy?affi='+this.affilication+'&cards='+this.cardBlocks.toString();
 	if(this.affilication!='none'&&this.cardBlocks.length>=10) {
 		$("#out").html("<a href='"+buff+"'>Download your deck</a>"); 
 	} else {

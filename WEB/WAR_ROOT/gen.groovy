@@ -4,22 +4,24 @@ def paramCardBlocks = params["cards"].split(",")
 
 // we read the core.xml file into dataMap (key:blockNr,value:array-of-cards)
 def dataMap = [:]
-def rootNode = new XmlParser().parse(new FileInputStream(context.getRealPath("/tmp/Core.xml")))
-rootNode.cards[0].children().each { cardXmlElement ->
-	def properties = [:]
-	cardXmlElement.children().each {
-		properties[it.@name] = it.@value
-	}	
-	if(properties.Block == "") {
-		properties.Block = "0";
+["/Core.xml", "/Desolation-Of-Hoth.xml"].each { refFileDef ->
+	def rootNode = new XmlParser().parse(this.getClass().getResourceAsStream(refFileDef))
+	rootNode.cards[0].children().each { cardXmlElement ->
+		def properties = [:]
+		cardXmlElement.children().each {
+			properties[it.@name] = it.@value
+		}	
+		if(properties.Block == "") {
+			properties.Block = "0";
+		}
+		properties.id=cardXmlElement.@id
+		properties.name=cardXmlElement.@name
+		def blockNr = properties.Block.toInteger();
+		if(!dataMap.containsKey(blockNr)) {
+			dataMap.put(blockNr, [])
+		}
+		dataMap.get(blockNr).add(properties)
 	}
-	properties.id=cardXmlElement.@id
-	properties.name=cardXmlElement.@name
-	def blockNr = properties.Block.toInteger();
-	if(!dataMap.containsKey(blockNr)) {
-		dataMap.put(blockNr, [])
-	}
-	dataMap.get(blockNr).add(properties)
 }
 
 // since a block could be selected more than once, we need to build a map (blockNr->count)
