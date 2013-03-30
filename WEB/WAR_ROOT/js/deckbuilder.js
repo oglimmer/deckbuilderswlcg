@@ -38,7 +38,7 @@ String.prototype.toObject = function(rowSep, colSep) {
 
 function Cards() {
 
-	this.onlyOnce = [35,36,17,18]
+	this.onlyOnce = [35,36,17,18,39,42]
 	this.affiliationRestrictions = [
 		{affi:'Sith',blockNo:22},
 		{affi:'Imperial Navy',blockNo:28},
