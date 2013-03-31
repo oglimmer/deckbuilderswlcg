@@ -1,6 +1,15 @@
 import static groovyx.net.http.ContentType.JSON
 import groovyx.net.http.RESTClient
+
+import java.lang.ref.WeakReference;
 import java.security.MessageDigest
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.*
+import javax.servlet.http.HttpSession;
+
+import de.oglimmer.bcg.servlet.CrossContextSession;
 
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
@@ -24,9 +33,9 @@ if (params.type=='create') {
 	try {
 		def messageDigest = MessageDigest.getInstance("SHA1")
 		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password: messageDigest.digest(params.pass.bytes), deckList: []])
-		safeSession()
-		session.loggedIn = true;
+		safeSession()		
 		session.email = params.email.toLowerCase()
+		CrossContextSession.INSTANCE.saveSessionToServletContext(request)		
 		def deckNames = []
 		builder (
 			[deckNames: deckNames, path: 'tmp']
@@ -43,8 +52,8 @@ if (params.type=='login') {
 		def httpResponse = client.get(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON)
 		if(messageDigest.digest(params.pass.bytes) == httpResponse.data.password) {
 			safeSession()
-			session.loggedIn = true
-			session.email = params.email.toLowerCase()
+			session.email = params.email.toLowerCase()			
+			CrossContextSession.INSTANCE.saveSessionToServletContext(request)	
 			def deckNames = httpResponse.data.deckList
 			builder (
 				[deckNames: deckNames, path: (httpResponse.data.picPath?httpResponse.data.picPath:'tmp')]
@@ -59,7 +68,8 @@ if (params.type=='login') {
 
 if(params.type=='relogin') {
 	safeSession()
-	if(session.loggedIn) {
+	CrossContextSession.INSTANCE.retrieveSessionFromServletContext(request)
+	if(session.email != null) {
 		def httpResponse = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)		
 		def deckNames = httpResponse.data.deckList
 		builder (
@@ -137,6 +147,10 @@ if (params.type=='delete') {
 	builder (
 		[deckNames: deckNames, path: (response.data.picPath?response.data.picPath:'tmp')]
 	)
+}
+
+if (params.type=='logout') {
+	CrossContextSession.INSTANCE.invalidateAllSessions(request)
 }
 
 response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");

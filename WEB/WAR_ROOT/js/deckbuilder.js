@@ -523,16 +523,16 @@ User.prototype.register = function() {
 }
 
 User.prototype.logout = function() {
-	deleteCookie("JSESSIONID")
-	$('#mainLinkLogin').show();
-	$('#mainLinkRegister').show();                            			
-	this.deckList = [];
-	this.path = "tmp";
+	$.get( "api.groovy" , {	type:'logout' })
+	$('#mainLinkLogin').show()
+	$('#mainLinkRegister').show()                    			
+	this.deckList = []
+	this.path = "tmp"
 	this.loggedIn = false
-	$('#mainLinkLoad').hide();
-	$('#mainLinkSave').hide();
-	$('#mainLinkSaveAs').hide();
-	$('#mainLinkLogout').hide();
+	$('#mainLinkLoad').hide()
+	$('#mainLinkSave').hide()
+	$('#mainLinkSaveAs').hide()
+	$('#mainLinkLogout').hide()
 }
 
 User.prototype.login = function() {
