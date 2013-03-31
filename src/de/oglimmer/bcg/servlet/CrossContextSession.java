@@ -145,8 +145,7 @@ public enum CrossContextSession {
 
 	private void removeDeadEntries(HttpServletRequest req) {
 
-		ServletContext crossContext = getServletContext(req);
-		Map<String, WeakReference<HttpSession>[]> ccsm = getMapFromContext(crossContext);
+		Map<String, WeakReference<HttpSession>[]> ccsm = getSafeMap(req);
 
 		for (Iterator<Map.Entry<String, WeakReference<HttpSession>[]>> it = ccsm
 				.entrySet().iterator(); it.hasNext();) {
