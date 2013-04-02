@@ -535,6 +535,41 @@ User.prototype.logout = function() {
 	$('#mainLinkLogout').hide()
 }
 
+User.prototype.changePass = function() {
+	$( 	'<div>'+
+	  		'<p>Please enter your old and new passwort:</p>'+
+	  		'Old password:<br/><input type="password" id="oldPass" name="oldPass" /><br/>'+
+	  		'New password:<br/><input type="password" id="newPass" name="newPass" />'+
+			'</div>' ).dialog({     
+				modal: true,                   
+		        title: 'Change password',
+		        close: function(ev, ui) {
+					$(this).remove();
+				},
+		        buttons: {
+		            "Change": function () { 
+		            	$.ajax( "api.groovy" , {
+		            		type: 'POST',
+		            		dataType: 'json',
+		            		headers: { "cache-control": "no-cache" },
+		            		data: { type:'changePass', oldPass:$("#oldPass").val(), newPass:$("#newPass").val() },		            		
+							error : function(jqXHR, textStatus, errorThrown) {
+								if(errorThrown=='Forbidden') {
+		                			alert("Wrong old password!");
+		                		} else {
+		                			alert(errorThrown);
+		                		}
+		                	}
+		            	});
+		            	$( this ).dialog( "destroy" ); 
+		           	},
+		           	"Cancel": function() {
+		           		$( this ).dialog( "destroy" ); 
+		           	}
+		        }
+		    });		
+}
+
 User.prototype.login = function() {
 	var self = this;
 	$( 	'<div>'+

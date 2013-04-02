@@ -15,13 +15,13 @@
 		<div id="tabs">
 			<ul>
 				<li><a href="#adminDiv"><span>Admin</span></a></li>
-				<li><a href="#statisticsDiv"><span>Statistics</span></a></li>
 				<li><a href="#cardsDiv"><span>Card Blocks</span></a></li>
+				<li><a href="#statisticsDiv"><span>Statistics</span></a></li>
 				<li><a href="#helpDiv"><span>Help</span></a></li>
 			</ul>
 			<div id="adminDiv">
 				<div id="mainLinkLogout" style='display:none;'>
-					<a href="javascript:void(0)" onclick="user.logout()">Log out</a>
+					<a href="javascript:void(0)" onclick="user.logout()">Log out</a> / <a href="javascript:void(0)" onclick="user.changePass()">Change password</a>
 				</div>
 				<div id="mainLinkLoad" style='display:none;'>
 					<a href="javascript:void(0)" onclick="user.showDeckList()">Load deck</a>

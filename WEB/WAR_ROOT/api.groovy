@@ -11,6 +11,8 @@ import javax.servlet.http.HttpSession;
 
 import de.oglimmer.bcg.servlet.CrossContextSession;
 
+import org.mindrot.jbcrypt.BCrypt;
+
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
 @Grab(group='org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.6')
@@ -31,8 +33,8 @@ def builder = new groovy.json.JsonBuilder()
 
 if (params.type=='create') {
 	try {
-		def messageDigest = MessageDigest.getInstance("SHA1")
-		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password: messageDigest.digest(params.pass.bytes), deckList: []])
+		def hashed = BCrypt.hashpw(params.pass, BCrypt.gensalt(12));
+		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password2: hashed, deckList: []])
 		safeSession()		
 		session.email = params.email.toLowerCase()
 		CrossContextSession.INSTANCE.saveSessionToServletContext(request)		
@@ -48,9 +50,16 @@ if (params.type=='create') {
 
 if (params.type=='login') {
 	try {
-		def messageDigest = MessageDigest.getInstance("SHA1")
+		def success = false
 		def httpResponse = client.get(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON)
-		if(messageDigest.digest(params.pass.bytes) == httpResponse.data.password) {
+		if(httpResponse.data.password2) {
+			success = BCrypt.checkpw(params.pass, httpResponse.data.password2)
+		} else {
+			def messageDigest = MessageDigest.getInstance("SHA1")
+			success = messageDigest.digest(params.pass.bytes) == httpResponse.data.password
+		}
+		
+		if(success) {
 			safeSession()
 			session.email = params.email.toLowerCase()			
 			CrossContextSession.INSTANCE.saveSessionToServletContext(request)	
@@ -61,6 +70,30 @@ if (params.type=='login') {
 		} else {
 			response.sendError(403);
 		}		
+	} catch(groovyx.net.http.HttpResponseException e) {
+		response.sendError(403);
+	}
+}
+
+if (params.type=='changePass') {
+	try {
+		def success = false
+		def httpResponse = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)
+		if(httpResponse.data.password2) {
+			success = BCrypt.checkpw(params.oldPass, httpResponse.data.password2)
+		} else {
+			def messageDigest = MessageDigest.getInstance("SHA1")
+			success = messageDigest.digest(params.oldPass.bytes) == httpResponse.data.password
+		}
+		
+		if(success) {
+			httpResponse.data.remove("password");
+			def hashed = BCrypt.hashpw(params.newPass, BCrypt.gensalt(12));
+			httpResponse.data.password2 = hashed
+			client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
+		} else {
+			response.sendError(403);
+		}
 	} catch(groovyx.net.http.HttpResponseException e) {
 		response.sendError(403);
 	}
