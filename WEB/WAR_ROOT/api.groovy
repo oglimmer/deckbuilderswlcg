@@ -1,17 +1,22 @@
 import static groovyx.net.http.ContentType.JSON
 import groovyx.net.http.RESTClient
 
-import java.lang.ref.WeakReference;
+import java.lang.ref.WeakReference
 import java.security.MessageDigest
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashMap
+import java.util.Map
+import java.util.Random;
 
 import javax.servlet.*
-import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpSession
 
-import de.oglimmer.bcg.servlet.CrossContextSession;
+import de.oglimmer.bcg.servlet.CrossContextSession
 
-import org.mindrot.jbcrypt.BCrypt;
+import org.mindrot.jbcrypt.BCrypt
+
+import javax.mail.internet.*
+import javax.mail.*
+import javax.activation.*
 
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
@@ -94,6 +99,76 @@ if (params.type=='changePass') {
 		} else {
 			response.sendError(403);
 		}
+	} catch(groovyx.net.http.HttpResponseException e) {
+		response.sendError(403);
+	}
+}
+
+if (params.type=='recoverPassReq') {
+	try {
+		def buff = new StringBuilder(32);
+		Random RAN = new Random(System.currentTimeMillis());
+		for (int i = 0; i < 32; i++) {
+			char nextChar= 58;
+			while ((nextChar >= 58 && nextChar <= 64)	|| (nextChar >= 91 && nextChar <= 96)) {
+				nextChar = (char) (RAN.nextInt(75) + 48);
+			}
+			buff.append(nextChar);
+		}
+		def passRecoveryToken = buff.toString();
+		def httpResponse = client.get(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON)
+		httpResponse.data.passRecoveryToken = passRecoveryToken
+		client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
+		
+		Properties mprops = new Properties();
+		mprops.setProperty("mail.transport.protocol","smtp");
+		mprops.setProperty("mail.host", "localhost");
+		mprops.setProperty("mail.smtp.port", "25");		
+		Session lSession = Session.getDefaultInstance(mprops,null);
+		MimeMessage msg = new MimeMessage(lSession);	
+		msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
+		msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
+		msg.setSubject("Request for a new password at swlcg.oglimmer.de");
+		msg.setText("Hello,\r\n\r\nyou requested a new password for swlcg.oglimmer.de.\r\n\r\nTo generate a new password click this link: http://swlcg.oglimmer.de/api.groovy?type=recoverPass&email="+params.email+"&token="+ passRecoveryToken+"\r\n\r\nIf you haven't requested a new password, just ignore this email.\r\n")		
+		Transport.send(msg);
+		
+	} catch(groovyx.net.http.HttpResponseException e) {
+		response.sendError(403);
+	}
+}
+
+if (params.type=='recoverPass') {
+	try {
+		def buff = new StringBuilder(12);
+		Random RAN = new Random(System.currentTimeMillis());
+		for (int i = 0; i < 12; i++) {
+			char nextChar= 58;
+			while ((nextChar >= 58 && nextChar <= 64)	|| (nextChar >= 91 && nextChar <= 96)) {
+				nextChar = (char) (RAN.nextInt(75) + 48);
+			}
+			buff.append(nextChar);
+		}
+		def generatedPass = buff.toString();
+		def httpResponse = client.get(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON)
+		httpResponse.data.remove("password");
+		httpResponse.data.remove("passRecoveryToken");
+		def hashed = BCrypt.hashpw(generatedPass, BCrypt.gensalt(12));
+		httpResponse.data.password2 = hashed
+		client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
+				
+		Properties mprops = new Properties();
+		mprops.setProperty("mail.transport.protocol","smtp");
+		mprops.setProperty("mail.host", "localhost");
+		mprops.setProperty("mail.smtp.port", "25");		
+		Session lSession = Session.getDefaultInstance(mprops,null);
+		MimeMessage msg = new MimeMessage(lSession);	
+		msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
+		msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
+		msg.setSubject("A new password at swlcg.oglimmer.de");
+		msg.setText("Hello,\r\n\r\nwe generated a new password for you.\r\n\r\nIt is: "+ generatedPass+"\r\n\r\nYou can login at http://swlcg.oglimmer.de\r\n")		
+		Transport.send(msg);
+		println "Email sent. You can close this window now."
+		return;
 	} catch(groovyx.net.http.HttpResponseException e) {
 		response.sendError(403);
 	}

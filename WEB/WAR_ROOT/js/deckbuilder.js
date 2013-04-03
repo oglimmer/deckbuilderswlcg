@@ -570,6 +570,39 @@ User.prototype.changePass = function() {
 		    });		
 }
 
+User.prototype.recoverPass = function() {
+	$( 	'<div>'+
+			'<p>You can get a newly generated password via email. To do so please enter your email address and we will initiate a password generation process:</p>'+
+			'<br/><input type="text" id="email" name="email" />'+
+	'</div>' ).dialog({     
+		modal: true,                   
+		title: 'Recover password',
+		close: function(ev, ui) {
+			$(this).remove();
+		},
+		buttons: {
+			"Send email": function () { 
+				$.ajax( "api.groovy" , {
+					type: 'POST',
+					dataType: 'json',
+					headers: { "cache-control": "no-cache" },
+					data: { type:'recoverPassReq', email:$("#email").val() },		            		
+					error : function(jqXHR, textStatus, errorThrown) {
+						if(errorThrown=='Forbidden') {
+						} else {
+							alert(errorThrown);
+						}
+					}
+				});
+				$( this ).dialog( "destroy" ); 
+			},
+			"Cancel": function() {
+				$( this ).dialog( "destroy" ); 
+			}
+		}
+	});		
+}
+
 User.prototype.login = function() {
 	var self = this;
 	$( 	'<div>'+

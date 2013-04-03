@@ -36,7 +36,7 @@
 					<a href="javascript:void(0)" onclick="user.register()">Register account</a>
 				</div>
 				<div id="mainLinkLogin">
-					<a href="javascript:void(0)" onclick="user.login()">Login</a>
+					<a href="javascript:void(0)" onclick="user.login()">Login</a> / <a href="javascript:void(0)" onclick="user.recoverPass()">Password recovery</a>
 				</div>
 				<div id="mainLinkDark">
 					<a href="javascript:void(0)" onclick="cards.createSide('Dark')">Create new Dark side deck</a> 
