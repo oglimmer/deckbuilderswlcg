@@ -34,23 +34,28 @@ public enum CrossContextSession {
 	public synchronized boolean retrieveSessionFromServletContext(
 			HttpServletRequest req) {
 		boolean loggedIn = false;
-		HttpSession currentSession = req.getSession();
-		if (currentSession.getAttribute(SESSION_ATT_NAME) == null) {
+		try {
+			HttpSession currentSession = req.getSession();
+			if (currentSession.getAttribute(SESSION_ATT_NAME) == null) {
 
-			WeakReference<HttpSession>[] ccs = getHttpSessions(req,
-					req.getSession(), false);
-			if (ccs != null && ccs[0] != null) {
-				HttpSession savedSess = ccs[0].get();
-				if (savedSess != null) {
-					currentSession.setAttribute(SESSION_ATT_NAME,
-							savedSess.getAttribute(SESSION_ATT_NAME));
-					loggedIn = true;
-					saveSessionToServletContext(req);
+				WeakReference<HttpSession>[] ccs = getHttpSessions(req,
+						req.getSession(), false);
+				if (ccs != null && ccs[0] != null) {
+					HttpSession savedSess = ccs[0].get();
+					if (savedSess != null) {
+						currentSession.setAttribute(SESSION_ATT_NAME,
+								savedSess.getAttribute(SESSION_ATT_NAME));
+						loggedIn = true;
+						saveSessionToServletContext(req);
+					}
 				}
 			}
-		}
-		removeDeadEntries(req);
+			removeDeadEntries(req);
 
+		} catch (IllegalStateException e) {
+			// happens if a session was already invalidated
+			e.printStackTrace();
+		}
 		return loggedIn;
 	}
 
@@ -93,7 +98,7 @@ public enum CrossContextSession {
 					if (ss != null) {
 						try {
 							ss.invalidate();
-						} catch (Exception e) {
+						} catch (IllegalStateException e) {
 							e.printStackTrace();
 						}
 					}
