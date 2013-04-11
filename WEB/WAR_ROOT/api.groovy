@@ -38,8 +38,8 @@ def builder = new groovy.json.JsonBuilder()
 
 if (params.type=='create') {
 	try {
-		def hashed = BCrypt.hashpw(params.pass, BCrypt.gensalt(12));
-		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password2: hashed, deckList: []])
+		def hashed = BCrypt.hashpw(params.pass, BCrypt.gensalt(10));
+		def response = client.put(path: getDBName() + params.email.toLowerCase(), contentType: JSON, requestContentType:  JSON, body: [password2: hashed, deckList_swlcg: []])
 		safeSession()		
 		session.email = params.email.toLowerCase()
 		CrossContextSession.INSTANCE.saveSessionToServletContext(request)		
@@ -68,7 +68,7 @@ if (params.type=='login') {
 			safeSession()
 			session.email = params.email.toLowerCase()			
 			CrossContextSession.INSTANCE.saveSessionToServletContext(request)	
-			def deckNames = httpResponse.data.deckList
+			def deckNames = httpResponse.data.deckList_swlcg
 			builder (
 				[deckNames: deckNames, path: (httpResponse.data.picPath?httpResponse.data.picPath:'tmp')]
 			)
@@ -93,7 +93,7 @@ if (params.type=='changePass') {
 		
 		if(success) {
 			httpResponse.data.remove("password");
-			def hashed = BCrypt.hashpw(params.newPass, BCrypt.gensalt(12));
+			def hashed = BCrypt.hashpw(params.newPass, BCrypt.gensalt(10));
 			httpResponse.data.password2 = hashed
 			client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
 		} else {
@@ -119,6 +119,8 @@ if (params.type=='recoverPassReq') {
 		def httpResponse = client.get(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON)
 		httpResponse.data.passRecoveryToken = passRecoveryToken
 		client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
+		
+		System.out.println("Generated pass-recovery url=api.groovy?type=recoverPass&email="+params.email+"&token="+ passRecoveryToken);
 		
 		Properties mprops = new Properties();
 		mprops.setProperty("mail.transport.protocol","smtp");
@@ -150,25 +152,29 @@ if (params.type=='recoverPass') {
 		}
 		def generatedPass = buff.toString();
 		def httpResponse = client.get(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON)
-		httpResponse.data.remove("password");
-		httpResponse.data.remove("passRecoveryToken");
-		def hashed = BCrypt.hashpw(generatedPass, BCrypt.gensalt(12));
-		httpResponse.data.password2 = hashed
-		client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
-				
-		Properties mprops = new Properties();
-		mprops.setProperty("mail.transport.protocol","smtp");
-		mprops.setProperty("mail.host", "localhost");
-		mprops.setProperty("mail.smtp.port", "25");		
-		Session lSession = Session.getDefaultInstance(mprops,null);
-		MimeMessage msg = new MimeMessage(lSession);	
-		msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
-		msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
-		msg.setSubject("A new password at swlcg.oglimmer.de");
-		msg.setText("Hello,\r\n\r\nwe generated a new password for you.\r\n\r\nIt is: "+ generatedPass+"\r\n\r\nYou can login at http://swlcg.oglimmer.de\r\n")		
-		Transport.send(msg);
-		println "Email sent. You can close this window now."
+		if(httpResponse.data.passRecoveryToken == params.token) {
+			httpResponse.data.remove("password");
+			httpResponse.data.remove("passRecoveryToken");
+			def hashed = BCrypt.hashpw(generatedPass, BCrypt.gensalt(10));
+			httpResponse.data.password2 = hashed
+			client.put(path: getDBName() + params.email, contentType: JSON, requestContentType:  JSON, body: httpResponse.data)
+			
+			System.out.println("Generated a password for "+params.email+"="+generatedPass);
+					
+			Properties mprops = new Properties();
+			mprops.setProperty("mail.transport.protocol","smtp");
+			mprops.setProperty("mail.host", "localhost");
+			mprops.setProperty("mail.smtp.port", "25");		
+			Session lSession = Session.getDefaultInstance(mprops,null);
+			MimeMessage msg = new MimeMessage(lSession);	
+			msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
+			msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
+			msg.setSubject("A new password at swlcg.oglimmer.de");
+			msg.setText("Hello,\r\n\r\nwe generated a new password for you.\r\n\r\nIt is: "+ generatedPass+"\r\n\r\nYou can login at http://swlcg.oglimmer.de\r\n")		
+			Transport.send(msg);
+			println "Email sent. You can close this window now."
 		return;
+		}
 	} catch(groovyx.net.http.HttpResponseException e) {
 		response.sendError(403);
 	}
@@ -179,7 +185,7 @@ if(params.type=='relogin') {
 	CrossContextSession.INSTANCE.retrieveSessionFromServletContext(request)
 	if(session.email != null) {
 		def httpResponse = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)		
-		def deckNames = httpResponse.data.deckList
+		def deckNames = httpResponse.data.deckList_swlcg
 		builder (
 			[deckNames: deckNames, path: (httpResponse.data.picPath?httpResponse.data.picPath:'tmp')]
 		)
@@ -213,12 +219,12 @@ if (params.type=='save') {
 		}
 		// update user
 		response = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)		
-		def deck = response.data.deckList.find { it.id == params.deckId }
+		def deck = response.data.deckList_swlcg.find { it.id == params.deckId }
 		deck.valid = params.valid
 		client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: response.data)
 		// return new created deck
 		builder (
-			[deckNames: response.data.deckList, path: (response.data.picPath?response.data.picPath:'tmp')]
+			[deckNames: response.data.deckList_swlcg, path: (response.data.picPath?response.data.picPath:'tmp')]
 		)
 	} else {
 		def deckData = [owner: session.email, deckName: params.deckName, side: params.side,affiliation: params.affi,blocks:params.blocks ]
@@ -227,7 +233,7 @@ if (params.type=='save') {
 		def newId = response.data.id
 		// update user
 		response = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)
-		response.data.deckList.push([id: newId, name: params.deckName, side: params.side, valid: params.valid])
+		response.data.deckList_swlcg.push([id: newId, name: params.deckName, side: params.side, valid: params.valid])
 		response = client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: response.data)	
 		// return new created deck
 		builder (
@@ -247,9 +253,9 @@ if (params.type=='delete') {
 	}
 	// update user
 	response = client.get(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON)	
-	def deckNames = response.data.deckList	
+	def deckNames = response.data.deckList_swlcg	
 	deckNames = deckNames.findAll { it.id != params.deckId }	
-	response.data.deckList = deckNames	
+	response.data.deckList_swlcg = deckNames	
 	response = client.put(path: getDBName() + session.email, contentType: JSON, requestContentType:  JSON, body: response.data)		
 	// return new created deck
 	builder (
