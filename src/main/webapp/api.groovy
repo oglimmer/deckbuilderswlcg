@@ -20,7 +20,6 @@ import javax.activation.*
 
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
-@Grab(group='org.codehaus.groovy.modules.http-builder', module='http-builder', version='0.6')
 def getRESTClient(){
   return new RESTClient("http://localhost:5984/")
 }
