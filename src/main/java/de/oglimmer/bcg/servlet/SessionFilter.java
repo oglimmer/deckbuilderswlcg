@@ -29,6 +29,11 @@ public class SessionFilter implements Filter {
 		HttpServletRequest httpReq = (HttpServletRequest) req;
 		HttpServletResponse httpResp = (HttpServletResponse) resp;
 		HttpSession session = httpReq.getSession();
+
+		CrossContextSession.INSTANCE.retrieveSessionFromServletContext(httpReq);
+
+		// nasty: the previous call might have invalidated the session
+		session = httpReq.getSession();
 		if (session.isNew()) {
 			String id = session.getId();
 			long expireTimestamp = System.currentTimeMillis()

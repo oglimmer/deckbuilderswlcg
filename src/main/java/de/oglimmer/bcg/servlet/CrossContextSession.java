@@ -1,8 +1,6 @@
 package de.oglimmer.bcg.servlet;
 
-import java.lang.ref.WeakReference;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
@@ -29,32 +27,49 @@ public enum CrossContextSession {
 	 * from the context. If the context had it, register this session.
 	 * 
 	 * @param req
-	 * @return true if SESSION_ATT_NAME was retrieved from the context
 	 */
 	public synchronized boolean retrieveSessionFromServletContext(
 			HttpServletRequest req) {
+
+		/**
+		 * 1.) not logged in here and not logged in elsewhere => do nothing <br/>
+		 * 2.) is logged in here and not logged out elsewhere => do nothing <br/>
+		 * 3.) is logged in here but logged out elsewhere => invalidate here <br/>
+		 * 4.) not logged in here but logged in elsewhere => take over session <br/>
+		 * 5.) not logged in here but logged out elsewhere => do nothing <br/>
+		 * 6.) is logged in here but logged in elsewhere with a different
+		 * account => change login here <br/>
+		 */
 		boolean loggedIn = false;
-		try {
-			HttpSession currentSession = req.getSession();
-			if (currentSession.getAttribute(SESSION_ATT_NAME) == null) {
-
-				WeakReference<HttpSession>[] ccs = getHttpSessions(req,
-						req.getSession(), false);
-				if (ccs != null && ccs[0] != null) {
-					HttpSession savedSess = ccs[0].get();
-					if (savedSess != null) {
-						currentSession.setAttribute(SESSION_ATT_NAME,
-								savedSess.getAttribute(SESSION_ATT_NAME));
-						loggedIn = true;
-						saveSessionToServletContext(req);
-					}
-				}
+		HttpSession currentSession = req.getSession();
+		Map<String, String> map = getSafeMap(req);
+		String attValue = map.get(currentSession.getId());
+		if ("INV".equals(attValue)) {
+			if (currentSession.getAttribute(SESSION_ATT_NAME) != null) {
+				System.out.println("invalidated by remote "
+						+ currentSession.getId());
+				currentSession.invalidate();
+			} else {
+				System.out.println("nothing (INV, but nothing here) "
+						+ currentSession.getId());
 			}
-			removeDeadEntries(req);
-
-		} catch (IllegalStateException e) {
-			// happens if a session was already invalidated
-			e.printStackTrace();
+		} else if (attValue != null
+				&& currentSession.getAttribute(SESSION_ATT_NAME) == null) {
+			currentSession.setAttribute(SESSION_ATT_NAME, attValue);
+			loggedIn = true;
+			System.out.println("remote login " + currentSession.getId() + "="
+					+ attValue);
+		} else if (attValue != null
+				&& currentSession.getAttribute(SESSION_ATT_NAME) != null
+				&& !attValue.equals(currentSession
+						.getAttribute(SESSION_ATT_NAME))) {
+			currentSession.setAttribute(SESSION_ATT_NAME, attValue);
+			loggedIn = true;
+			System.out.println("remote replace login " + currentSession.getId()
+					+ "=" + attValue);
+		} else {
+			System.out.println("nothing " + currentSession.getId() + "="
+					+ currentSession.getAttribute(SESSION_ATT_NAME));
 		}
 		return loggedIn;
 	}
@@ -66,20 +81,15 @@ public enum CrossContextSession {
 	 * @param session
 	 */
 	public synchronized void saveSessionToServletContext(HttpServletRequest req) {
+		HttpSession currentSession = req.getSession();
+		assert currentSession.getAttribute(SESSION_ATT_NAME) != null;
 
-		HttpSession session = req.getSession();
+		Map<String, String> map = getSafeMap(req);
+		map.put(currentSession.getId(),
+				(String) currentSession.getAttribute(SESSION_ATT_NAME));
 
-		WeakReference<HttpSession>[] ccs = getHttpSessions(req, session, true);
-
-		if (ccs[0] == null) {
-			ccs[0] = new WeakReference<HttpSession>(session);
-		} else if (ccs[1] == null) {
-			ccs[1] = new WeakReference<HttpSession>(session);
-		} else {
-			throw new RuntimeException("No free session-storage");
-		}
-
-		removeDeadEntries(req);
+		System.out.println("saved " + currentSession.getId() + "="
+				+ currentSession.getAttribute(SESSION_ATT_NAME));
 	}
 
 	/**
@@ -89,58 +99,33 @@ public enum CrossContextSession {
 	 * @param req
 	 */
 	public synchronized void invalidateAllSessions(HttpServletRequest req) {
-		HttpSession session = req.getSession();
-		WeakReference<HttpSession>[] ccs = getHttpSessions(req, session, false);
-		if (ccs != null) {
-			for (int i = 0; i < 2; i++) {
-				if (ccs[i] != null) {
-					HttpSession ss = ccs[i].get();
-					if (ss != null) {
-						try {
-							ss.invalidate();
-						} catch (IllegalStateException e) {
-							e.printStackTrace();
-						}
-					}
-					ccs[i].clear();
-					ccs[i] = null;
-				}
-			}
-			ServletContext crossContext = getServletContext(req);
-			Map<String, WeakReference<HttpSession>[]> ccsm = getMapFromContext(crossContext);
-			ccsm.remove(session.getId());
-		}
+		HttpSession currentSession = req.getSession();
+		System.out.println("invalidated " + currentSession.getId());
+		Map<String, String> map = getSafeMap(req);
+		map.put(currentSession.getId(), "INV");
+		currentSession.invalidate();
 	}
 
-	@SuppressWarnings("unchecked")
-	private WeakReference<HttpSession>[] getHttpSessions(
-			HttpServletRequest req, HttpSession session, boolean create) {
-		Map<String, WeakReference<HttpSession>[]> ccsm = getSafeMap(req);
-
-		WeakReference<HttpSession>[] ccs = ccsm.get(session.getId());
-		if (create && ccs == null) {
-			ccs = new WeakReference[2];
-			ccsm.put(session.getId(), ccs);
-		}
-		return ccs;
-	}
-
-	private Map<String, WeakReference<HttpSession>[]> getSafeMap(
-			HttpServletRequest req) {
+	private Map<String, String> getSafeMap(HttpServletRequest req) {
 		ServletContext crossContext = getServletContext(req);
-		Map<String, WeakReference<HttpSession>[]> ccsm = getMapFromContext(crossContext);
+		Map<String, String> ccsm = null;
+		if (crossContext != null) {
+			ccsm = getMapFromContext(crossContext);
+		}
 
 		if (ccsm == null) {
-			ccsm = new HashMap<String, WeakReference<HttpSession>[]>();
-			crossContext.setAttribute(CONTEXT_ATT_NAME, ccsm);
+			ccsm = new HashMap<String, String>();
+			if (crossContext != null) {
+				System.out.println("Added context");
+				crossContext.setAttribute(CONTEXT_ATT_NAME, ccsm);
+			}
 		}
 		return ccsm;
 	}
 
 	@SuppressWarnings("unchecked")
-	private Map<String, WeakReference<HttpSession>[]> getMapFromContext(
-			ServletContext crossContext) {
-		return (Map<String, WeakReference<HttpSession>[]>) crossContext
+	private Map<String, String> getMapFromContext(ServletContext crossContext) {
+		return (Map<String, String>) crossContext
 				.getAttribute(CONTEXT_ATT_NAME);
 	}
 
@@ -148,31 +133,4 @@ public enum CrossContextSession {
 		return req.getSession().getServletContext().getContext(CONTEXT_NAME);
 	}
 
-	private void removeDeadEntries(HttpServletRequest req) {
-
-		Map<String, WeakReference<HttpSession>[]> ccsm = getSafeMap(req);
-
-		for (Iterator<Map.Entry<String, WeakReference<HttpSession>[]>> it = ccsm
-				.entrySet().iterator(); it.hasNext();) {
-			Map.Entry<String, WeakReference<HttpSession>[]> en = it.next();
-			WeakReference<HttpSession>[] sessions = en.getValue();
-
-			if (sessions[1] != null) {
-				if (sessions[1].get() == null) {
-					sessions[1] = null;
-				}
-			}
-			if (sessions[0] != null) {
-				if (sessions[0].get() == null) {
-					sessions[0] = null;
-				}
-			}
-			if (sessions[1] != null && sessions[0] == null) {
-				sessions[0] = sessions[1];
-				sessions[1] = null;
-			} else if (sessions[0] == null && sessions[1] == null) {
-				it.remove();
-			}
-		}
-	}
 }
