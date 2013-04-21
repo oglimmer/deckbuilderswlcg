@@ -30,10 +30,19 @@ public class SessionFilter implements Filter {
 		HttpServletResponse httpResp = (HttpServletResponse) resp;
 		HttpSession session = httpReq.getSession();
 
-		CrossContextSession.INSTANCE.retrieveSessionFromServletContext(httpReq);
+		if (httpReq.getRequestURI().endsWith("gif")
+				|| httpReq.getRequestURI().endsWith("png")
+				|| httpReq.getRequestURI().endsWith("jpg")) {
+			// cache images for a month
+			httpResp.addHeader("Cache-Control",
+					"public, max-age=2678400, s-maxage=2678400");
+		} else {
+			CrossContextSession.INSTANCE
+					.retrieveSessionFromServletContext(httpReq);
+			// nasty: the previous call might have invalidated the session
+			session = httpReq.getSession();
+		}
 
-		// nasty: the previous call might have invalidated the session
-		session = httpReq.getSession();
 		if (session.isNew()) {
 			String id = session.getId();
 			long expireTimestamp = System.currentTimeMillis()
