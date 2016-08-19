@@ -46,30 +46,30 @@ public enum CrossContextSession {
 		String attValue = map.get(currentSession.getId());
 		if ("INV".equals(attValue)) {
 			if (currentSession.getAttribute(SESSION_ATT_NAME) != null) {
-				System.out.println("invalidated by remote "
-						+ currentSession.getId());
+				// System.out.println("invalidated by remote "
+				// 		+ currentSession.getId());
 				currentSession.invalidate();
 			} else {
-				System.out.println("nothing (INV, but nothing here) "
-						+ currentSession.getId());
+				// System.out.println("nothing (INV, but nothing here) "
+				// 		+ currentSession.getId());
 			}
 		} else if (attValue != null
 				&& currentSession.getAttribute(SESSION_ATT_NAME) == null) {
 			currentSession.setAttribute(SESSION_ATT_NAME, attValue);
 			loggedIn = true;
-			System.out.println("remote login " + currentSession.getId() + "="
-					+ attValue);
+			// System.out.println("remote login " + currentSession.getId() + "="
+			// 		+ attValue);
 		} else if (attValue != null
 				&& currentSession.getAttribute(SESSION_ATT_NAME) != null
 				&& !attValue.equals(currentSession
 						.getAttribute(SESSION_ATT_NAME))) {
 			currentSession.setAttribute(SESSION_ATT_NAME, attValue);
 			loggedIn = true;
-			System.out.println("remote replace login " + currentSession.getId()
-					+ "=" + attValue);
+			// System.out.println("remote replace login " + currentSession.getId()
+			// 		+ "=" + attValue);
 		} else {
-			System.out.println("nothing " + currentSession.getId() + "="
-					+ currentSession.getAttribute(SESSION_ATT_NAME));
+			// System.out.println("nothing " + currentSession.getId() + "="
+			// 		+ currentSession.getAttribute(SESSION_ATT_NAME));
 		}
 		return loggedIn;
 	}
@@ -88,8 +88,8 @@ public enum CrossContextSession {
 		map.put(currentSession.getId(),
 				(String) currentSession.getAttribute(SESSION_ATT_NAME));
 
-		System.out.println("saved " + currentSession.getId() + "="
-				+ currentSession.getAttribute(SESSION_ATT_NAME));
+		// System.out.println("saved " + currentSession.getId() + "="
+		// 		+ currentSession.getAttribute(SESSION_ATT_NAME));
 	}
 
 	/**
@@ -100,7 +100,7 @@ public enum CrossContextSession {
 	 */
 	public synchronized void invalidateAllSessions(HttpServletRequest req) {
 		HttpSession currentSession = req.getSession();
-		System.out.println("invalidated " + currentSession.getId());
+		// System.out.println("invalidated " + currentSession.getId());
 		Map<String, String> map = getSafeMap(req);
 		map.put(currentSession.getId(), "INV");
 		currentSession.invalidate();
@@ -116,7 +116,7 @@ public enum CrossContextSession {
 		if (ccsm == null) {
 			ccsm = new HashMap<String, String>();
 			if (crossContext != null) {
-				System.out.println("Added context");
+				// System.out.println("Added context");
 				crossContext.setAttribute(CONTEXT_ATT_NAME, ccsm);
 			}
 		}
