@@ -1,6 +1,7 @@
 module.exports = {
 
   config: {
+    SchemaVersion: "1.0.0",
     Name: "deckbuilderSwlcg",
     Vagrant: {
       Box: 'ubuntu/xenial64',
