@@ -11,6 +11,7 @@ import javax.servlet.*
 import javax.servlet.http.HttpSession
 
 import de.oglimmer.bcg.servlet.CrossContextSession
+import de.oglimmer.bcg.SwlcgProperties
 
 import org.mindrot.jbcrypt.BCrypt
 
@@ -21,7 +22,7 @@ import javax.activation.*
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
 def getRESTClient(){
-  return new RESTClient("http://localhost:5984/")
+  return new RESTClient("http://" + SwlcgProperties.INSTANCE.getDbHost() + ":5984/")
 }
 def getDBName() {
 	return "swlcg/"
