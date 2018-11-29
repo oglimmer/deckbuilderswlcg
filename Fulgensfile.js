@@ -12,21 +12,37 @@ module.exports = {
     ]
   },
 
+  versions: {
+    tomcat: {
+      Docker: "tomcat9-openjdk11-openj9"
+    }
+  },
+
   software: {
-    "deckbuilder": {
+    deckbuilder: {
       Source: "mvn",      
-      Artifact: "target/deckbuilder.war"
+      Artifact: "target/deckbuilder.war",
+      config: {
+        Name: "lunchy.properties",
+        Content: [
+          { Line: "{" },
+          { Line: "\"db.host\": \"$$VALUE$$\"", Source: "couchdb" },
+          { Line: "}" }
+        ],
+        AttachAsEnvVar: ["JAVA_OPTS", "-Dswlcg.properties=$$SELF_NAME$$"]
+      }
     },
 
-    "couchdb": {
+    couchdb: {
       Source: "couchdb",
       CouchDB: {
         Schema: "swlcg"
       }
     },
 
-    "tomcat": {
+    tomcat: {
       Source: "tomcat",
+      DockerImage: "oglimmer/adoptopenjdk-tomcat",
       Deploy: "deckbuilder"
     }
   }
