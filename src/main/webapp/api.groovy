@@ -22,10 +22,10 @@ import javax.activation.*
 //org.apache.log4j.xml.DOMConfigurator.configure("log4j.xml");
 
 def getRESTClient(){
-  return new RESTClient("http://" + SwlcgProperties.INSTANCE.getDbHost() + ":5984/")
+  return new RESTClient(SwlcgProperties.INSTANCE.getDbProtocol() + "://" + SwlcgProperties.INSTANCE.getDbHost() + ":" + SwlcgProperties.INSTANCE.getDbPort() + "/")
 }
 def getDBName() {
-	return "swlcg/"
+	return SwlcgProperties.INSTANCE.getDbSchema() + "/"
 }
 def safeSession() {
 	if (!session) {
@@ -123,13 +123,13 @@ if (params.type=='recoverPassReq') {
 		System.out.println("Generated pass-recovery url=api.groovy?type=recoverPass&email="+params.email+"&token="+ passRecoveryToken);
 		
 		Properties mprops = new Properties();
-		mprops.setProperty("mail.transport.protocol","smtp");
-		mprops.setProperty("mail.host", "localhost");
-		mprops.setProperty("mail.smtp.port", "25");		
+		mprops.setProperty("mail.transport.protocol", SwlcgProperties.INSTANCE.getMailProtocol());
+		mprops.setProperty("mail.host", SwlcgProperties.INSTANCE.getMailHost());
+		mprops.setProperty("mail.smtp.port", SwlcgProperties.INSTANCE.getMailPort());
 		Session lSession = Session.getDefaultInstance(mprops,null);
 		MimeMessage msg = new MimeMessage(lSession);	
 		msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
-		msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
+		msg.setFrom(new InternetAddress(SwlcgProperties.INSTANCE.getMailSenderAddress()));
 		msg.setSubject("Request for a new password at swlcg.oglimmer.de");
 		msg.setText("Hello,\r\n\r\nyou requested a new password for swlcg.oglimmer.de.\r\n\r\nTo generate a new password click this link: http://swlcg.oglimmer.de/api.groovy?type=recoverPass&email="+params.email+"&token="+ passRecoveryToken+"\r\n\r\nIf you haven't requested a new password, just ignore this email.\r\n")		
 		Transport.send(msg);
@@ -162,13 +162,13 @@ if (params.type=='recoverPass') {
 			System.out.println("Generated a password for "+params.email+"="+generatedPass);
 					
 			Properties mprops = new Properties();
-			mprops.setProperty("mail.transport.protocol","smtp");
-			mprops.setProperty("mail.host", "localhost");
-			mprops.setProperty("mail.smtp.port", "25");		
+			mprops.setProperty("mail.transport.protocol", SwlcgProperties.INSTANCE.getMailProtocol());
+			mprops.setProperty("mail.host", SwlcgProperties.INSTANCE.getMailHost());
+			mprops.setProperty("mail.smtp.port", SwlcgProperties.INSTANCE.getMailPort());
 			Session lSession = Session.getDefaultInstance(mprops,null);
 			MimeMessage msg = new MimeMessage(lSession);	
 			msg.setRecipients(MimeMessage.RecipientType.TO, new InternetAddress(params.email));
-			msg.setFrom(new InternetAddress("no_reply@junta-online.net"));
+			msg.setFrom(new InternetAddress(SwlcgProperties.INSTANCE.getMailSenderAddress()));
 			msg.setSubject("A new password at swlcg.oglimmer.de");
 			msg.setText("Hello,\r\n\r\nwe generated a new password for you.\r\n\r\nIt is: "+ generatedPass+"\r\n\r\nYou can login at http://swlcg.oglimmer.de\r\n")		
 			Transport.send(msg);
